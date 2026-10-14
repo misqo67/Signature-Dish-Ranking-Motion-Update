@@ -5,35 +5,49 @@ import aceIconImg from "../assets/ace-icon.webp";
 
 const SCREEN_W = 390;
 const SCREEN_H = 844;
-const HALF_RATIO = 0.8;
-const ACE_TOP_CROP = 40; // 方案A半浮层态裁掉的头部状态栏区域(px)，展开成整页时恢复
-const HALF_H = Math.round(SCREEN_H * HALF_RATIO);
 
+/* ============================================================
+   王牌菜榜 icon 强化动效方案（基于原方案 = 承接方案二的方案B）
+   原方案：现有动效 —— 返回榜单中心时 icon 单道白色扫光（1.6s）
+   方案一：弹性放大 + 双重扫光（白 + 暖橙光束先后掠过）
+   方案二：呼吸放大 + 橙色光晕脉冲 + 光环两圈向外扩散
+   方案三：闪光 + 星尘光点向四周迸发
+   四个方案共用方案B 的王牌菜榜入场形态（上滑整页/返回箭头）
+   ============================================================ */
 const SCHEMES = [
-  { id: "half", label: "方案A · 半浮层", short: "方案1" },
-  { id: "up", label: "方案B · 上滑整页", short: "方案2" },
-  { id: "left", label: "方案C · 左滑整页", short: "方案3" },
-  { id: "shine", label: "方案D · 扫光+左滑整页", short: "方案4" },
+  { id: "origin", label: "原方案 · 上滑整页（现状）", short: "原方案" },
+  { id: "s1", label: "方案一 · 弹性放大+双重扫光", short: "方案一" },
+  { id: "s2", label: "方案二 · 橙色光晕脉冲扩散", short: "方案二" },
+  { id: "s3", label: "方案三 · 星尘迸发", short: "方案三" },
 ];
 
-/* 方案D 复用方案C 的 ace 页形态（左滑整页/返回箭头），仅入场时序不同 */
-const aceModeOf = (s) => (s === "shine" ? "left" : s);
+/* 方案三星尘迸发：10 颗光点以 icon 为中心向四周飞散的方向与距离(px) */
+const PARTICLE_DIRS = Array.from({ length: 10 }, (_, i) => {
+  const angle = (i / 10) * Math.PI * 2 + 0.32;
+  const dist = 28 + (i % 3) * 12;
+  return [Math.round(Math.cos(angle) * dist), Math.round(Math.sin(angle) * dist * 0.85)];
+});
 
-const EASE = "cubic-bezier(0.22, 1, 0.36, 1)"; /* 快出 + 明显缓收，上滑/左滑更利落 */
+/* 进入榜单中心页后：原方案保持现状（0.65s 后王牌菜榜直接上滑展开，icon 动效仅在返回时播放）；
+   方案一/二/三先播 icon 强化动效，动效收尾后王牌菜榜再上滑展开 */
+const CENTER_ENTRY_DELAY = { origin: 650, s1: 1700, s2: 1900, s3: 1550 };
+
+/* 四个方案共用方案B 的 ace 页形态（上滑整页/返回箭头） */
+const aceModeOf = () => "up";
+
+const EASE = "cubic-bezier(0.22, 1, 0.36, 1)"; /* 快出 + 明显缓收，上滑更利落 */
 
 export default function Index() {
-  const [scheme, setScheme] = useState("half");
+  const [scheme, setScheme] = useState("origin");
   const [screen, setScreen] = useState("home"); // home | center
-  const [ace, setAce] = useState("closed"); // closed | half | full(方案A整页) | open(方案B/C整页)
-  const [sheetH, setSheetH] = useState(null); // 拖拽中的实时高度(px)
-  const [dragging, setDragging] = useState(false);
+  const [ace, setAce] = useState("closed"); // closed | open(整页)
   const [aceLoaded, setAceLoaded] = useState(false); // 王牌菜榜页是否加载完成
-  const [iconBounceKey, setIconBounceKey] = useState(0); // 返回时王牌菜榜 icon 扫光动效重放计数
+  const [iconBounceKey, setIconBounceKey] = useState(0); // 王牌菜榜 icon 强化动效重放计数（返回/进入榜单中心时）
   const [animOn, setAnimOn] = useState(true); // 切换方案瞬间关闭过渡，避免穿帮
   const [bubbleOpen, setBubbleOpen] = useState(false); // 悬浮方案切换气泡展开态
+  const [centerEntryKey, setCenterEntryKey] = useState(0); // 切换方案后强制重播榜单中心入场链路
   const [scale, setScale] = useState(1);
   const scaleRef = useRef(1);
-  const dragRef = useRef(null);
   const iframeRef = useRef(null);
   const schemeRef = useRef(scheme);
   useEffect(() => { schemeRef.current = scheme; }, [scheme]);
@@ -57,7 +71,7 @@ export default function Index() {
 
   const closeAce = useCallback(() => {
     setAce("closed");
-    // 面板收起后，榜单中心页的王牌菜榜 icon 播放放大缩小动效
+    // 面板收起后，榜单中心页的王牌菜榜 icon 按当前方案播放强化动效
     window.setTimeout(() => setIconBounceKey((k) => k + 1), 420);
   }, []);
 
@@ -70,13 +84,13 @@ export default function Index() {
     }, 700); // 等入场动画结束后再开始闪
   }, []);
 
-  // 打开王牌菜榜：重置到白斩鸡榜 tab，并同步当前方案的返回图标形态（半浮层/上滑=叉号，左滑=返回箭头）
+  // 打开王牌菜榜：重置到白斩鸡榜 tab，并同步返回图标形态（上滑=返回箭头）
   const showAce = useCallback(() => {
-    setAce(schemeRef.current === "half" ? "half" : "open");
+    setAce("open");
     try {
       const win = iframeRef.current?.contentWindow;
       win?.postMessage("ace:reset-tab", "*");
-      win?.postMessage("ace:mode:" + aceModeOf(schemeRef.current), "*");
+      win?.postMessage("ace:mode:" + aceModeOf(), "*");
     } catch (err) {
       /* iframe 未就绪时由 URL 参数保证初始态 */
     }
@@ -86,108 +100,106 @@ export default function Index() {
   // 王牌菜榜页面常驻预加载，点击时直接呈现
   const openAce = showAce;
 
-  // 方案A：从金刚区 icon 手动进入 → 整页从下往上滑出（自动出现仍为半浮层）
-  const openAceFull = useCallback(() => {
-    setAce("full");
-    try {
-      const win = iframeRef.current?.contentWindow;
-      win?.postMessage("ace:reset-tab", "*");
-      win?.postMessage("ace:mode:half", "*");
-    } catch (err) {
-      /* iframe 未就绪时由 URL 参数保证初始态 */
-    }
-    triggerCardHighlight();
-  }, [triggerCardHighlight]);
-
-  // 方案A：半浮层 ⇄ 全屏切换时通知 ace 页切换 Tab 形态（半浮层=文字药丸，全屏=圆图）
-  useEffect(() => {
-    if (scheme !== "half") return;
-    try {
-      iframeRef.current?.contentWindow?.postMessage("ace:sheet:" + (ace === "full" ? "full" : "half"), "*");
-    } catch (err) {
-      /* iframe 未就绪时忽略，恢复半浮层时会有下一次通知 */
-    }
-  }, [ace, scheme]);
-
   const switchScheme = (id) => {
     if (id === scheme) return;
     setAnimOn(false);
     setScheme(id);
     setAce("closed");
-    setSheetH(null);
-    setScreen("home"); // 切换方案时回到首页初始状态
+    setScreen("center"); // 切换方案后直接进入榜单中心页，立即展示该方案的入口动效
+    setCenterEntryKey((k) => k + 1);
     window.setTimeout(() => setAnimOn(true), 80);
   };
 
-  // ===== 方案A 半浮层拖拽 =====
-  const onHandleDown = (e) => {
-    e.preventDefault();
-    e.currentTarget.setPointerCapture(e.pointerId);
-    dragRef.current = { startY: e.clientY };
-    setDragging(true);
-    setSheetH(HALF_H);
-  };
-  const onHandleMove = (e) => {
-    if (!dragRef.current) return;
-    const dy = (e.clientY - dragRef.current.startY) / scaleRef.current;
-    const next = Math.min(SCREEN_H, Math.max(220, HALF_H - dy));
-    setSheetH(next);
-  };
-  const onHandleUp = () => {
-    if (!dragRef.current) return;
-    dragRef.current = null;
-    setDragging(false);
-    setSheetH((h) => {
-      if (h == null) return null;
-      if (h > SCREEN_H * 0.8) {
-        setAce("full");
-        return null;
-      }
-      if (h < HALF_H * 0.72) {
-        setAce("closed");
-        return null;
-      }
-      setAce("half");
-      return null;
-    });
-  };
-
-  // 进入榜单中心页后，王牌菜榜按当前方案自动出现（每次从首页进入触发一次；从王牌菜榜返回不重复触发）
+  // 进入榜单中心页后，王牌菜榜按当前方案自动出现：
+  // 原方案 0.65s 后直接上滑；新方案先播 icon 强化动效，收尾后整页上滑展开
   useEffect(() => {
     if (screen !== "center") return;
-    // 方案D：进入榜单中心页先播 icon 扫光（1.6s），扫光结束后整页再从右往左滑入
-    const isShine = scheme === "shine";
-    if (isShine) setIconBounceKey((k) => k + 1);
+    if (schemeRef.current !== "origin") setIconBounceKey((k) => k + 1);
     const t = window.setTimeout(
       () => {
         showAce();
       },
-      isShine ? 2250 : 650
+      CENTER_ENTRY_DELAY[schemeRef.current] ?? 650
     );
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [screen]);
+  }, [screen, centerEntryKey]);
 
   const isAceVisible = ace !== "closed";
-  const aceFull = scheme === "half" ? ace === "full" : ace === "open";
+  const aceFull = ace === "open";
 
-  // 常驻面板：一个容器承载三种方案的收起/展开，iframe 只加载一次
-  const closedTransform =
-    scheme === "left" || scheme === "shine" ? "translateX(100%)" : "translateY(100%)";
-  const panelHeight = scheme === "half" && ace === "half" ? sheetH ?? HALF_H : SCREEN_H;
+  // 常驻面板：一个容器承载全部方案，iframe 只加载一次
+  const closedTransform = "translateY(100%)";
 
   return (
     <div className="w-screen h-screen overflow-hidden bg-[#f5f5f7] flex items-center justify-center" style={{ fontFamily: "-apple-system, 'PingFang SC', 'Helvetica Neue', sans-serif" }}>
       <style>{`
-        @keyframes ace-icon-shine {
+        /* ===== 王牌菜榜 icon 强化动效（key 重播） ===== */
+        .icon-beam {
+          background: linear-gradient(100deg, rgba(255,255,255,0) 18%, rgba(255,255,255,0.55) 40%, rgba(255,255,255,0.95) 50%, rgba(255,255,255,0.55) 60%, rgba(255,255,255,0) 82%);
+          transform: translateX(-130%) skewX(-20deg);
+          will-change: transform;
+        }
+        @keyframes icon-beam-sweep {
           0% { transform: translateX(-130%) skewX(-20deg); }
           100% { transform: translateX(230%) skewX(-20deg); }
         }
-        .ace-icon-shine__beam {
-          background: linear-gradient(100deg, rgba(255,255,255,0) 18%, rgba(255,255,255,0.55) 40%, rgba(255,255,255,0.95) 50%, rgba(255,255,255,0.55) 60%, rgba(255,255,255,0) 82%);
-          transform: translateX(-130%) skewX(-20deg);
-          animation: ace-icon-shine 1.6s cubic-bezier(0.45, 0, 0.25, 1) 0.05s both;
-          will-change: transform;
+        /* 原方案：单道白色扫光（现状动效，1.6s） */
+        .icon-beam--origin { animation: icon-beam-sweep 1.6s cubic-bezier(0.45, 0, 0.25, 1) 0.05s both; }
+        /* 方案一：弹性放大 + 白/暖双道扫光 */
+        @keyframes icon-pop {
+          0% { transform: scale(1); } 30% { transform: scale(1.16); } 52% { transform: scale(0.94); }
+          74% { transform: scale(1.05); } 100% { transform: scale(1); }
+        }
+        .icon-inner--s1 { animation: icon-pop 0.95s cubic-bezier(0.34, 1.4, 0.64, 1) 0.05s both; }
+        .icon-beam--1 { animation: icon-beam-sweep 0.8s cubic-bezier(0.45, 0, 0.25, 1) 0.12s both; }
+        .icon-beam--2 {
+          background: linear-gradient(100deg, rgba(255,255,255,0) 18%, rgba(255,220,180,0.6) 40%, rgba(255,255,255,1) 50%, rgba(255,220,180,0.6) 60%, rgba(255,255,255,0) 82%);
+          animation: icon-beam-sweep 0.8s cubic-bezier(0.45, 0, 0.25, 1) 0.55s both;
+        }
+        /* 方案二：呼吸放大 + 橙色光晕脉冲 + 光环两圈扩散 */
+        @keyframes icon-breathe {
+          0%, 100% { transform: scale(1); } 40% { transform: scale(1.08); } 75% { transform: scale(0.99); }
+        }
+        .icon-inner--s2 { animation: icon-breathe 1.5s ease-in-out 0.05s both; }
+        .icon-glow {
+          background: radial-gradient(circle at 50% 55%, rgba(255,150,60,0.55) 0%, rgba(255,150,60,0.2) 45%, rgba(255,150,60,0) 75%);
+          animation: icon-glow-pulse 0.75s ease-out 0.05s 3 both;
+        }
+        @keyframes icon-glow-pulse { 0% { opacity: 0; } 30% { opacity: 1; } 100% { opacity: 0; } }
+        .icon-ring {
+          position: absolute; left: 50%; top: 50%;
+          width: 100%; height: 100%;
+          border-radius: 9999px;
+          border: 2px solid rgba(255,140,64,0.85);
+          box-shadow: 0 0 12px rgba(255,150,60,0.45);
+          transform: translate(-50%, -50%);
+          opacity: 0;
+          will-change: transform, opacity;
+        }
+        @keyframes icon-ring-burst {
+          0% { transform: translate(-50%, -50%) scale(0.7); opacity: 0.9; }
+          100% { transform: translate(-50%, -50%) scale(2.7); opacity: 0; }
+        }
+        .icon-ring--1 { animation: icon-ring-burst 1.15s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both; }
+        .icon-ring--2 { animation: icon-ring-burst 1.15s cubic-bezier(0.16, 1, 0.3, 1) 0.55s both; }
+        /* 方案三：闪光 + 星尘迸发 */
+        .icon-inner--s3 { animation: icon-pop 0.75s cubic-bezier(0.34, 1.4, 0.64, 1) 0.05s both; }
+        .icon-flash { background: #fff; mix-blend-mode: screen; animation: icon-flash 0.35s ease-out 0.08s both; }
+        @keyframes icon-flash { 0% { opacity: 0.75; } 100% { opacity: 0; } }
+        .icon-particle {
+          position: absolute; left: 50%; top: 50%;
+          width: 6px; height: 6px; margin: -3px 0 0 -3px;
+          border-radius: 9999px;
+          background: radial-gradient(circle, #FFFFFF 0%, #FFD9A8 40%, rgba(255,140,60,0) 75%);
+          box-shadow: 0 0 6px rgba(255,180,110,0.9);
+          opacity: 0;
+          animation: icon-particle-fly 0.95s cubic-bezier(0.16, 1, 0.3, 1) both;
+          will-change: transform, opacity;
+        }
+        @keyframes icon-particle-fly {
+          0% { transform: translate(0, 0) scale(1); opacity: 1; }
+          100% { transform: translate(var(--dx), var(--dy)) scale(0.15); opacity: 0; }
         }
       `}</style>
       {/* 手机屏幕（自适应不同屏幕尺寸，无外壳描边与圆角） */}
@@ -206,13 +218,8 @@ export default function Index() {
               className="absolute inset-0"
               style={{
                 transition: animOn ? `transform 0.45s ${EASE}, filter 0.45s ${EASE}` : "none",
-                transform:
-                  aceFull && scheme === "up"
-                    ? "scale(0.96)"
-                    : aceFull && (scheme === "left" || scheme === "shine")
-                      ? "translateX(-14%)"
-                      : "none",
-                filter: isAceVisible && scheme !== "half" ? "brightness(0.92)" : "none",
+                transform: aceFull ? "scale(0.96)" : "none",
+                filter: isAceVisible ? "brightness(0.92)" : "none",
               }}
             >
               {/* 首页 */}
@@ -243,50 +250,60 @@ export default function Index() {
                   className="absolute active:bg-black/5 rounded-full"
                   style={{ left: "2.5%", top: "7%", width: "7.5%", height: "4.2%" }}
                 />
-                {/* 王牌菜榜入口：新视觉 icon（返回时播放扫光动效） */}
+                {/* 王牌菜榜入口 icon：按当前方案播放强化动效（外层不裁切，允许光晕/星尘溢出） */}
                 <div
                   key={iconBounceKey}
-                  className="ace-icon-shine absolute pointer-events-none overflow-hidden"
+                  className="absolute pointer-events-none"
                   style={{ left: "9.6%", top: "30.6%", width: "10.3%", height: "4.74%" }}
                 >
-                  <img src={aceIconImg} alt="王牌菜榜" className="w-full h-full" draggable={false} />
-                  <div className="ace-icon-shine__beam absolute inset-0" />
+                  {/* 方案二：橙色光环两圈向外脉冲扩散 */}
+                  {scheme === "s2" && (
+                    <>
+                      <div className="icon-ring icon-ring--1" />
+                      <div className="icon-ring icon-ring--2" />
+                    </>
+                  )}
+                  {/* 方案三：星尘光点向四周迸发 */}
+                  {scheme === "s3" &&
+                    PARTICLE_DIRS.map((d, i) => (
+                      <div
+                        key={i}
+                        className="icon-particle"
+                        style={{ "--dx": d[0] + "px", "--dy": d[1] + "px", animationDelay: 30 * i + "ms" }}
+                      />
+                    ))}
+                  <div className={`icon-inner icon-inner--${scheme} absolute inset-0 overflow-hidden`}>
+                    <img src={aceIconImg} alt="王牌菜榜" className="w-full h-full" draggable={false} />
+                    {scheme === "origin" && <div className="icon-beam icon-beam--origin absolute inset-0" />}
+                    {scheme === "s1" && (
+                      <>
+                        <div className="icon-beam icon-beam--1 absolute inset-0" />
+                        <div className="icon-beam icon-beam--2 absolute inset-0" />
+                      </>
+                    )}
+                    {scheme === "s2" && <div className="icon-glow absolute inset-0" />}
+                    {scheme === "s3" && <div className="icon-flash absolute inset-0" />}
+                  </div>
                 </div>
                 {/* 王牌菜榜入口热区 */}
                 <button
                   aria-label="进入王牌菜榜"
-                  onClick={scheme === "half" ? openAceFull : openAce}
+                  onClick={openAce}
                   className="absolute rounded-xl active:bg-black/5"
                   style={{ left: "5.5%", top: "30.4%", width: "17%", height: "8.6%" }}
                 />
               </div>
             </div>
 
-            {/* ===== 方案A：半浮层蒙层 ===== */}
-            {scheme === "half" && (
-              <div
-                className="absolute inset-0 z-20 transition-opacity duration-300"
-                style={{ background: "rgba(17, 17, 17, 0.8)", opacity: ace !== "closed" ? 1 : 0, pointerEvents: ace === "half" ? "auto" : "none" }}
-                onClick={() => {
-                  if (ace === "half") closeAce();
-                }}
-              />
-            )}
-
             {/* ===== 王牌菜榜常驻面板（iframe 预加载，仅加载一次）===== */}
             <div
               className="absolute left-0 right-0 bottom-0 z-30 overflow-hidden"
               style={{
-                height: panelHeight,
-                borderTopLeftRadius: scheme === "half" && ace === "half" && !dragging ? 16 : 0,
-                borderTopRightRadius: scheme === "half" && ace === "half" && !dragging ? 16 : 0,
+                height: SCREEN_H,
                 background: "#1A1008",
                 transform: ace === "closed" ? closedTransform : "translate(0, 0)",
-                transition: dragging || !animOn ? "none" : `transform 0.38s ${EASE}, height 0.38s ${EASE}, border-radius 0.3s`,
-                boxShadow:
-                  scheme === "left" || scheme === "shine"
-                    ? "-8px 0 30px rgba(0,0,0,0.18)"
-                    : "0 -8px 30px rgba(0,0,0,0.18)",
+                transition: !animOn ? "none" : `transform 0.38s ${EASE}`,
+                boxShadow: "0 -8px 30px rgba(0,0,0,0.18)",
                 pointerEvents: ace === "closed" ? "none" : "auto",
               }}
             >
@@ -298,7 +315,7 @@ export default function Index() {
                 onLoad={() => {
                   setAceLoaded(true);
                   try {
-                    iframeRef.current?.contentWindow?.postMessage("ace:mode:" + aceModeOf(schemeRef.current), "*");
+                    iframeRef.current?.contentWindow?.postMessage("ace:mode:" + aceModeOf(), "*");
                   } catch (err) {}
                 }}
                 className="absolute left-0 border-0"
@@ -306,8 +323,7 @@ export default function Index() {
                   width: SCREEN_W,
                   height: SCREEN_H,
                   background: "#1A1008",
-                  top: scheme === "half" && ace === "half" ? -ACE_TOP_CROP : 0,
-                  transition: dragging || !animOn ? "none" : `top 0.4s ${EASE}`,
+                  top: 0,
                 }}
               />
               )}
@@ -345,19 +361,6 @@ export default function Index() {
                   <div className="mt-3 text-[12px] text-[#999]">王牌菜榜加载中…</div>
                 </div>
               )}
-              {/* 半浮层拖拽把手 + 提示 */}
-              {scheme === "half" && ace === "half" && (
-                <div
-                  className="absolute top-0 left-0 right-0 z-20 flex items-center justify-center cursor-grab active:cursor-grabbing touch-none"
-                  style={{ height: 14 }}
-                  onPointerDown={onHandleDown}
-                  onPointerMove={onHandleMove}
-                  onPointerUp={onHandleUp}
-                  onPointerCancel={onHandleUp}
-                >
-                  <div className="w-9 h-1 rounded-full bg-white/60" />
-                </div>
-              )}
             </div>
 
             {/* ===== 王牌菜榜页内返回热区（覆盖原生返回按钮位置）===== */}
@@ -370,10 +373,7 @@ export default function Index() {
                   left: "2%",
                   width: "9.5%",
                   height: "4.8%",
-                  top:
-                    scheme === "half" && ace === "half"
-                      ? `calc(${100 - ((sheetH ?? HALF_H) / SCREEN_H) * 100}% + 22px)`
-                      : "6.2%",
+                  top: "6.2%",
                 }}
               />
             )}

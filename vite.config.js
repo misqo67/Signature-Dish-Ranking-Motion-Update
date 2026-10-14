@@ -17,7 +17,7 @@ const publicPath = (isProdEnv && CHAT_VARIABLE)
   ? PUBLIC_PATH + '/' + CHAT_VARIABLE
   : PUBLIC_PATH + '/';
 const outDir = (isProdEnv && CHAT_VARIABLE) ? 'build/' + CHAT_VARIABLE : 'build';
-const FS_ALLOW = ['/mnt/nocode', '/root/projects/.init/node_modules'];
+const FS_ALLOW = ['/mnt/nocode', '/root/projects/.init/node_modules', fileURLToPath(new URL('.', import.meta.url))];
 
 async function loadPlugins() {
   const plugins = isProdEnv
