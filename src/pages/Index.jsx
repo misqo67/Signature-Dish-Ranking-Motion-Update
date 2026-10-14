@@ -7,32 +7,18 @@ const SCREEN_W = 390;
 const SCREEN_H = 844;
 
 /* ============================================================
-   王牌菜榜 icon 强化动效方案（基于原方案 = 承接方案二的方案B）
+   王牌菜榜入口强化动效（基于原方案 = 承接方案二的方案B）
    原方案：现有动效 —— 返回榜单中心时 icon 单道白色扫光（1.6s）
-   方案一：弹性放大 + 双重扫光（白 + 暖橙光束先后掠过）
-   方案二：呼吸放大 + 橙色光晕脉冲 + 光环两圈向外扩散
-   方案三：闪光 + 星尘光点向四周迸发
-   四个方案共用方案B 的王牌菜榜入场形态（上滑整页/返回箭头）
+   方案一：从王牌菜榜下滑退出后，icon 先放大再扫光
+   两个方案共用方案B 的王牌菜榜入场形态（上滑整页/返回箭头），
+   首页→榜单中心→王牌菜榜 全链路保持不变
    ============================================================ */
 const SCHEMES = [
   { id: "origin", label: "原方案 · 上滑整页（现状）", short: "原方案" },
-  { id: "s1", label: "方案一 · 弹性放大+双重扫光", short: "方案一" },
-  { id: "s2", label: "方案二 · 橙色光晕脉冲扩散", short: "方案二" },
-  { id: "s3", label: "方案三 · 星尘迸发", short: "方案三" },
+  { id: "s1", label: "方案一 · 退出时放大+扫光", short: "方案一" },
 ];
 
-/* 方案三星尘迸发：10 颗光点以 icon 为中心向四周飞散的方向与距离(px) */
-const PARTICLE_DIRS = Array.from({ length: 10 }, (_, i) => {
-  const angle = (i / 10) * Math.PI * 2 + 0.32;
-  const dist = 28 + (i % 3) * 12;
-  return [Math.round(Math.cos(angle) * dist), Math.round(Math.sin(angle) * dist * 0.85)];
-});
-
-/* 进入榜单中心页后：原方案保持现状（0.65s 后王牌菜榜直接上滑展开，icon 动效仅在返回时播放）；
-   方案一/二/三先播 icon 强化动效，动效收尾后王牌菜榜再上滑展开 */
-const CENTER_ENTRY_DELAY = { origin: 650, s1: 1700, s2: 1900, s3: 1550 };
-
-/* 四个方案共用方案B 的 ace 页形态（上滑整页/返回箭头） */
+/* 两个方案共用方案B 的 ace 页形态（上滑整页/返回箭头） */
 const aceModeOf = () => "up";
 
 const EASE = "cubic-bezier(0.22, 1, 0.36, 1)"; /* 快出 + 明显缓收，上滑更利落 */
@@ -42,7 +28,7 @@ export default function Index() {
   const [screen, setScreen] = useState("home"); // home | center
   const [ace, setAce] = useState("closed"); // closed | open(整页)
   const [aceLoaded, setAceLoaded] = useState(false); // 王牌菜榜页是否加载完成
-  const [iconBounceKey, setIconBounceKey] = useState(0); // 王牌菜榜 icon 强化动效重放计数（返回/进入榜单中心时）
+  const [iconBounceKey, setIconBounceKey] = useState(0); // 王牌菜榜 icon 强化动效重放计数（从王牌菜榜返回榜单中心时）
   const [animOn, setAnimOn] = useState(true); // 切换方案瞬间关闭过渡，避免穿帮
   const [bubbleOpen, setBubbleOpen] = useState(false); // 悬浮方案切换气泡展开态
   const [centerEntryKey, setCenterEntryKey] = useState(0); // 切换方案后强制重播榜单中心入场链路
@@ -71,7 +57,7 @@ export default function Index() {
 
   const closeAce = useCallback(() => {
     setAce("closed");
-    // 面板收起后，榜单中心页的王牌菜榜 icon 按当前方案播放强化动效
+    // 王牌菜榜下滑收起后，榜单中心页的王牌菜榜 icon 按当前方案播放强化动效
     window.setTimeout(() => setIconBounceKey((k) => k + 1), 420);
   }, []);
 
@@ -110,16 +96,14 @@ export default function Index() {
     window.setTimeout(() => setAnimOn(true), 80);
   };
 
-  // 进入榜单中心页后，王牌菜榜按当前方案自动出现：
-  // 原方案 0.65s 后直接上滑；新方案先播 icon 强化动效，收尾后整页上滑展开
+  // 进入榜单中心页后，王牌菜榜按原链路自动上滑展开（0.65s，与现状一致，全链路不变）
   useEffect(() => {
     if (screen !== "center") return;
-    if (schemeRef.current !== "origin") setIconBounceKey((k) => k + 1);
     const t = window.setTimeout(
       () => {
         showAce();
       },
-      CENTER_ENTRY_DELAY[schemeRef.current] ?? 650
+      650
     );
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -146,61 +130,14 @@ export default function Index() {
         }
         /* 原方案：单道白色扫光（现状动效，1.6s） */
         .icon-beam--origin { animation: icon-beam-sweep 1.6s cubic-bezier(0.45, 0, 0.25, 1) 0.05s both; }
-        /* 方案一：弹性放大 + 白/暖双道扫光 */
+        /* 方案一：退出王牌菜榜后 icon 先放大，再播扫光 */
         @keyframes icon-pop {
-          0% { transform: scale(1); } 30% { transform: scale(1.16); } 52% { transform: scale(0.94); }
-          74% { transform: scale(1.05); } 100% { transform: scale(1); }
+          0% { transform: scale(1); }
+          45% { transform: scale(1.22); }
+          100% { transform: scale(1); }
         }
-        .icon-inner--s1 { animation: icon-pop 0.95s cubic-bezier(0.34, 1.4, 0.64, 1) 0.05s both; }
-        .icon-beam--1 { animation: icon-beam-sweep 0.8s cubic-bezier(0.45, 0, 0.25, 1) 0.12s both; }
-        .icon-beam--2 {
-          background: linear-gradient(100deg, rgba(255,255,255,0) 18%, rgba(255,220,180,0.6) 40%, rgba(255,255,255,1) 50%, rgba(255,220,180,0.6) 60%, rgba(255,255,255,0) 82%);
-          animation: icon-beam-sweep 0.8s cubic-bezier(0.45, 0, 0.25, 1) 0.55s both;
-        }
-        /* 方案二：呼吸放大 + 橙色光晕脉冲 + 光环两圈扩散 */
-        @keyframes icon-breathe {
-          0%, 100% { transform: scale(1); } 40% { transform: scale(1.08); } 75% { transform: scale(0.99); }
-        }
-        .icon-inner--s2 { animation: icon-breathe 1.5s ease-in-out 0.05s both; }
-        .icon-glow {
-          background: radial-gradient(circle at 50% 55%, rgba(255,150,60,0.55) 0%, rgba(255,150,60,0.2) 45%, rgba(255,150,60,0) 75%);
-          animation: icon-glow-pulse 0.75s ease-out 0.05s 3 both;
-        }
-        @keyframes icon-glow-pulse { 0% { opacity: 0; } 30% { opacity: 1; } 100% { opacity: 0; } }
-        .icon-ring {
-          position: absolute; left: 50%; top: 50%;
-          width: 100%; height: 100%;
-          border-radius: 9999px;
-          border: 2px solid rgba(255,140,64,0.85);
-          box-shadow: 0 0 12px rgba(255,150,60,0.45);
-          transform: translate(-50%, -50%);
-          opacity: 0;
-          will-change: transform, opacity;
-        }
-        @keyframes icon-ring-burst {
-          0% { transform: translate(-50%, -50%) scale(0.7); opacity: 0.9; }
-          100% { transform: translate(-50%, -50%) scale(2.7); opacity: 0; }
-        }
-        .icon-ring--1 { animation: icon-ring-burst 1.15s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both; }
-        .icon-ring--2 { animation: icon-ring-burst 1.15s cubic-bezier(0.16, 1, 0.3, 1) 0.55s both; }
-        /* 方案三：闪光 + 星尘迸发 */
-        .icon-inner--s3 { animation: icon-pop 0.75s cubic-bezier(0.34, 1.4, 0.64, 1) 0.05s both; }
-        .icon-flash { background: #fff; mix-blend-mode: screen; animation: icon-flash 0.35s ease-out 0.08s both; }
-        @keyframes icon-flash { 0% { opacity: 0.75; } 100% { opacity: 0; } }
-        .icon-particle {
-          position: absolute; left: 50%; top: 50%;
-          width: 6px; height: 6px; margin: -3px 0 0 -3px;
-          border-radius: 9999px;
-          background: radial-gradient(circle, #FFFFFF 0%, #FFD9A8 40%, rgba(255,140,60,0) 75%);
-          box-shadow: 0 0 6px rgba(255,180,110,0.9);
-          opacity: 0;
-          animation: icon-particle-fly 0.95s cubic-bezier(0.16, 1, 0.3, 1) both;
-          will-change: transform, opacity;
-        }
-        @keyframes icon-particle-fly {
-          0% { transform: translate(0, 0) scale(1); opacity: 1; }
-          100% { transform: translate(var(--dx), var(--dy)) scale(0.15); opacity: 0; }
-        }
+        .icon-inner--s1 { animation: icon-pop 0.6s cubic-bezier(0.34, 1.4, 0.64, 1) both; }
+        .icon-beam--s1 { animation: icon-beam-sweep 1.6s cubic-bezier(0.45, 0, 0.25, 1) 0.55s both; }
       `}</style>
       {/* 手机屏幕（自适应不同屏幕尺寸，无外壳描边与圆角） */}
       <div className="relative" style={{ width: SCREEN_W * scale, height: SCREEN_H * scale }}>
@@ -250,39 +187,16 @@ export default function Index() {
                   className="absolute active:bg-black/5 rounded-full"
                   style={{ left: "2.5%", top: "7%", width: "7.5%", height: "4.2%" }}
                 />
-                {/* 王牌菜榜入口 icon：按当前方案播放强化动效（外层不裁切，允许光晕/星尘溢出） */}
+                {/* 王牌菜榜入口 icon：按当前方案播放强化动效（外层不裁切） */}
                 <div
                   key={iconBounceKey}
                   className="absolute pointer-events-none"
                   style={{ left: "9.6%", top: "30.6%", width: "10.3%", height: "4.74%" }}
                 >
-                  {/* 方案二：橙色光环两圈向外脉冲扩散 */}
-                  {scheme === "s2" && (
-                    <>
-                      <div className="icon-ring icon-ring--1" />
-                      <div className="icon-ring icon-ring--2" />
-                    </>
-                  )}
-                  {/* 方案三：星尘光点向四周迸发 */}
-                  {scheme === "s3" &&
-                    PARTICLE_DIRS.map((d, i) => (
-                      <div
-                        key={i}
-                        className="icon-particle"
-                        style={{ "--dx": d[0] + "px", "--dy": d[1] + "px", animationDelay: 30 * i + "ms" }}
-                      />
-                    ))}
                   <div className={`icon-inner icon-inner--${scheme} absolute inset-0 overflow-hidden`}>
                     <img src={aceIconImg} alt="王牌菜榜" className="w-full h-full" draggable={false} />
                     {scheme === "origin" && <div className="icon-beam icon-beam--origin absolute inset-0" />}
-                    {scheme === "s1" && (
-                      <>
-                        <div className="icon-beam icon-beam--1 absolute inset-0" />
-                        <div className="icon-beam icon-beam--2 absolute inset-0" />
-                      </>
-                    )}
-                    {scheme === "s2" && <div className="icon-glow absolute inset-0" />}
-                    {scheme === "s3" && <div className="icon-flash absolute inset-0" />}
+                    {scheme === "s1" && <div className="icon-beam icon-beam--s1 absolute inset-0" />}
                   </div>
                 </div>
                 {/* 王牌菜榜入口热区 */}
