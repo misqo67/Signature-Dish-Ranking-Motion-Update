@@ -2,8 +2,8 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import homePageImg from "../assets/homepage.webp";
 import centerPageImg from "../assets/ranking-center.webp";
 import aceIconImg from "../assets/ace-icon.webp"; // 榜单中心页 icon 默认态（王牌菜徽章，原方案/一/二/三）
-import aceClocheImg from "../assets/ace-icon-cloche.webp"; // 方案四默认态 = 新动画第一帧（橙色餐盖）
-import aceMotionImg from "../assets/ace-motion.webp"; // 方案四：退出后播放一次的掀盖动画（餐盖掹开露徽章，停末帧）
+import aceClocheImg from "../assets/ace-icon-cloche.webp"; // 方案二默认态 = 新动画第一帧（橙色餐盖）
+import aceMotionImg from "../assets/ace-motion.webp"; // 方案二：退出后播放一次的掀盖动画（餐盖掹开露徽章，停末帧）
 
 const SCREEN_W = 390;
 const SCREEN_H = 844;
@@ -12,40 +12,40 @@ const SCREEN_H = 844;
    王牌菜榜入口强化动效（基于原方案 = 承接方案二的方案B）
    原方案：现有动效 —— 返回榜单中心时 icon 单道白色扫光（1.6s）
    方案一：从王牌菜榜下滑退出后，icon 先放大再扫光
-   方案二：关闭时全屏王牌菜榜缩小、位移至王牌菜榜入口，
-           入口轻微放大回弹，结束后接一道扫光
-   方案三：与原方案相同的下滑收起；收起后周边内容短暂压暗，
-           入口保持明亮并出现「在这里，再看王牌菜榜」提示，
-           短暂停留后自动消失、亮度恢复
-   方案四：与原方案相同的下滑收起；默认态 icon 为橙色餐盖
+   方案二：与原方案相同的下滑收起；默认态 icon 为橙色餐盖
            （新动画第一帧），收起后播放掀盖动画（餐盖掹开
            露出王牌菜徽章，4s），播放完停在末帧（徽章）
+   方案三：关闭时全屏王牌菜榜缩小、位移至王牌菜榜入口，
+           入口轻微放大回弹，结束后接一道扫光
+   方案四：与原方案相同的下滑收起；收起后周边内容短暂压暗，
+           入口保持明亮并出现「在这里，再看王牌菜榜」提示，
+           短暂停留后自动消失、亮度恢复
    各方案共用方案B 的王牌菜榜入场形态（上滑整页/返回箭头），
    首页→榜单中心→王牌菜榜 全链路保持不变
    ============================================================ */
 const SCHEMES = [
   { id: "origin", label: "原方案 · 上滑整页（现状）", short: "原方案" },
   { id: "s1", label: "方案一 · 退出时放大+扫光", short: "方案一", note: "【推荐】" },
-  { id: "s4", label: "方案四 · 掀盖动画停末帧", short: "方案四" },
-  { id: "s2", label: "方案二 · 关闭缩回入口", short: "方案二", note: "【会有跟手交互问题】" },
-  { id: "s3", label: "方案三 · 聚光灯+引导提示", short: "方案三", note: "【影响操作流程性】" },
+  { id: "s4", label: "方案二 · 掀盖动画停末帧", short: "方案二" },
+  { id: "s2", label: "方案三 · 关闭缩回入口", short: "方案三", note: "【会有跟手交互问题】" },
+  { id: "s3", label: "方案四 · 聚光灯+引导提示", short: "方案四", note: "【影响操作流程性】" },
 ];
 
-/* 方案二：面板缩回王牌菜榜入口的目标位（icon 位于榜单中心页 left 9.6% / top 30.6%，宽 10.3%） */
+/* 方案三：面板缩回王牌菜榜入口的目标位（icon 位于榜单中心页 left 9.6% / top 30.6%，宽 10.3%） */
 const ACE_EXIT_TRANSFORM = `translate(${(SCREEN_W * 0.096).toFixed(2)}px, ${(SCREEN_H * 0.306).toFixed(2)}px) scale(0.103)`;
 
 /* 各方案共用方案B 的 ace 页形态（上滑整页/返回箭头） */
 const aceModeOf = () => "up";
 
 const EASE = "cubic-bezier(0.22, 1, 0.36, 1)"; /* 快出 + 明显缓收，上滑更利落 */
-const EASE_IN_OUT = "cubic-bezier(0.45, 0.05, 0.25, 1)"; /* 缓入缓出，方案二缩回用 */
+const EASE_IN_OUT = "cubic-bezier(0.45, 0.05, 0.25, 1)"; /* 缓入缓出，方案三缩回用 */
 
 export default function Index() {
   const [scheme, setScheme] = useState("origin");
   const [screen, setScreen] = useState("home"); // home | center
   const [ace, setAce] = useState("closed"); // closed | open(整页)
-  const [aceExit, setAceExit] = useState("none"); // none | zoom(方案二 关闭缩回入口)
-  const [spotlightOn, setSpotlightOn] = useState(false); // 方案三：退出后聚光灯引导提示
+  const [aceExit, setAceExit] = useState("none"); // none | zoom(方案三 关闭缩回入口)
+  const [spotlightOn, setSpotlightOn] = useState(false); // 方案四：退出后聚光灯引导提示
   const [aceLoaded, setAceLoaded] = useState(false); // 王牌菜榜页是否加载完成
   const [iconBounceKey, setIconBounceKey] = useState(0); // 王牌菜榜 icon 强化动效重放计数（从王牌菜榜返回榜单中心时）
   const [iconAnimArmed, setIconAnimArmed] = useState(false); // 仅退出王牌菜榜后允许 icon 播放动效（进入时不播）
@@ -87,7 +87,7 @@ export default function Index() {
 
   const closeAce = useCallback(() => {
     if (schemeRef.current === "s2") {
-      // 方案二：全屏王牌菜榜缩小、位移至王牌菜榜入口（缓入缓出）；
+      // 方案三：全屏王牌菜榜缩小、位移至王牌菜榜入口（缓入缓出）；
       // 缩回即刻入口轻微放大回弹（不等落位）
       setAceExit("zoom");
       setIconBounceKey((k) => k + 1);
@@ -102,7 +102,7 @@ export default function Index() {
       return;
     }
     if (schemeRef.current === "s3") {
-      // 方案三：与原方案相同下滑收起；收起后周边压暗、入口保持明亮并出现提示，短暂停留后消失
+      // 方案四：与原方案相同下滑收起；收起后周边压暗、入口保持明亮并出现提示，短暂停留后消失
       setAce("closed");
       aceExitTimerRef.current = window.setTimeout(() => {
         aceExitTimerRef.current = null;
@@ -123,7 +123,7 @@ export default function Index() {
     }, 420);
   }, []);
 
-  // 方案三：点击「我知道了」或蒙层提前关闭聚光灯提示
+  // 方案四：点击「我知道了」或蒙层提前关闭聚光灯提示
   const dismissSpotlight = useCallback(() => {
     if (aceExitTimerRef.current) {
       window.clearTimeout(aceExitTimerRef.current);
@@ -186,7 +186,7 @@ export default function Index() {
 
   const isAceVisible = ace !== "closed";
   const aceFull = ace === "open";
-  const aceExiting = aceExit === "zoom"; // 方案二：面板正在缩回入口
+  const aceExiting = aceExit === "zoom"; // 方案三：面板正在缩回入口
 
   // 常驻面板：一个容器承载全部方案，iframe 只加载一次
   const closedTransform = "translateY(100%)";
@@ -214,7 +214,7 @@ export default function Index() {
         }
         .icon-inner--s1 { animation: icon-pop 0.6s cubic-bezier(0.34, 1.4, 0.64, 1) both; }
         .icon-beam--s1 { animation: icon-beam-sweep 1.6s cubic-bezier(0.45, 0, 0.25, 1) 0.55s both; }
-        /* 方案二：面板散开瞬间入口大幅回弹，结束后接一道扫光 */
+        /* 方案三：面板散开瞬间入口大幅回弹，结束后接一道扫光 */
         @keyframes icon-settle {
           0% { transform: scale(1); }
           40% { transform: scale(1.16); }
@@ -307,7 +307,7 @@ export default function Index() {
               </div>
             </div>
 
-{/* ===== 方案三：聚光灯引导（周边压暗、原入口保持明亮 + 引导提示）===== */}
+{/* ===== 方案四：聚光灯引导（周边压暗、原入口保持明亮 + 引导提示）===== */}
 {scheme === "s3" && (
 <div
 className="absolute inset-0 z-20 transition-opacity duration-300"
@@ -362,7 +362,7 @@ boxShadow: "0 4px 12px rgba(0,0,0,0.25)",
 )}
 
 {/* ===== 王牌菜榜常驻面板（iframe 预加载，仅加载一次）=====
-方案二关闭时：整页缩小、位移至王牌菜榜入口并淡出，落位后入口回弹 */}
+方案三关闭时：整页缩小、位移至王牌菜榜入口并淡出，落位后入口回弹 */}
             <div
               className="absolute left-0 right-0 bottom-0 z-30 overflow-hidden"
               style={{
