@@ -110,8 +110,11 @@ export default function Index() {
     }
     setAce("closed");
     // 王牌菜榜下滑收起后，榜单中心页的王牌菜榜 icon 按当前方案播放强化动效
-    setIconAnimArmed(true);
-    window.setTimeout(() => setIconBounceKey((k) => k + 1), 420);
+    // armed 与 key 重放在同一次更新中进行，避免 class 先行导致动效播两次
+    window.setTimeout(() => {
+      setIconAnimArmed(true);
+      setIconBounceKey((k) => k + 1);
+    }, 420);
   }, []);
 
   // 方案三：点击「我知道了」或蒙层提前关闭聚光灯提示
@@ -200,7 +203,7 @@ export default function Index() {
         /* 方案一：退出王牌菜榜后 icon 先放大，再播扫光 */
         @keyframes icon-pop {
           0% { transform: scale(1); }
-          45% { transform: scale(1.22); }
+          45% { transform: scale(1.12); }
           100% { transform: scale(1); }
         }
         .icon-inner--s1 { animation: icon-pop 0.6s cubic-bezier(0.34, 1.4, 0.64, 1) both; }
@@ -208,7 +211,7 @@ export default function Index() {
         /* 方案二：面板散开瞬间入口大幅回弹，结束后接一道扫光 */
         @keyframes icon-settle {
           0% { transform: scale(1); }
-          40% { transform: scale(1.32); }
+          40% { transform: scale(1.16); }
           100% { transform: scale(1); }
         }
         .icon-inner--s2 { animation: icon-settle 0.4s cubic-bezier(0.34, 1.4, 0.64, 1) 0.3s both; }
