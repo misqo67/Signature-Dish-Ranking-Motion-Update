@@ -282,44 +282,36 @@ export default function Index() {
               </div>
             </div>
 
-{/* ===== 方案三：聚光灯引导（周边压暗、入口保持明亮 + 引导提示）===== */}
+{/* ===== 方案三：聚光灯引导（周边压暗、原入口保持明亮 + 引导提示）===== */}
 {scheme === "s3" && (
 <div
 className="absolute inset-0 z-20 transition-opacity duration-300"
 style={{
 opacity: spotlightOn ? 1 : 0,
 pointerEvents: spotlightOn ? "auto" : "none",
-background: "rgba(17, 17, 17, 0.82)",
 }}
-onClick={dismissSpotlight}
 >
-{/* 入口白卡：保持在暗色蒙层之上，形成「聚光灯」聚焦 */}
+{/* 蒙层挖洞：入口区域镂空保持明亮，其余全部压暗（原入口样式不变） */}
 <div
-className="absolute flex flex-col items-center justify-center"
+className="absolute"
 style={{
 left: "5.5%",
 top: "30.4%",
 width: "17%",
 height: "8.6%",
-background: "#fff",
 borderRadius: 12,
-boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
-transform: spotlightOn ? "scale(1)" : "scale(0.9)",
-transition: "transform 0.3s cubic-bezier(0.34, 1.4, 0.64, 1)",
+boxShadow: "0 0 0 9999px rgba(17, 17, 17, 0.82)",
 }}
->
-<img src={aceIconImg} alt="王牌菜榜" className="w-[46%] h-auto" draggable={false} />
-<span style={{ fontSize: 9, fontWeight: 600, color: "#111", marginTop: 2 }}>王牌菜榜</span>
-</div>
-{/* 引导提示 + 我知道了按钮 */}
+onClick={dismissSpotlight}
+/>
+{/* 引导提示 + 我知道了按钮（仅渐显，无位移） */}
 <div
 className="absolute"
 style={{
 left: "25.5%",
 top: "30.8%",
 opacity: spotlightOn ? 1 : 0,
-transform: spotlightOn ? "translateY(0)" : "translateY(6px)",
-transition: "opacity 0.25s ease 0.1s, transform 0.25s ease 0.1s",
+transition: "opacity 0.25s ease 0.1s",
 }}
 >
 <div style={{ fontSize: 17, fontWeight: 700, color: "#fff", whiteSpace: "nowrap", letterSpacing: 0.5 }}>
