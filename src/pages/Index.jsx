@@ -42,6 +42,7 @@ export default function Index() {
   const [spotlightOn, setSpotlightOn] = useState(false); // 方案三：退出后聚光灯引导提示
   const [aceLoaded, setAceLoaded] = useState(false); // 王牌菜榜页是否加载完成
   const [iconBounceKey, setIconBounceKey] = useState(0); // 王牌菜榜 icon 强化动效重放计数（从王牌菜榜返回榜单中心时）
+  const [iconAnimArmed, setIconAnimArmed] = useState(false); // 仅退出王牌菜榜后允许 icon 播放动效（进入时不播）
   const [animOn, setAnimOn] = useState(true); // 切换方案瞬间关闭过渡，避免穿帮
   const [bubbleOpen, setBubbleOpen] = useState(false); // 悬浮方案切换气泡展开态
   const [centerEntryKey, setCenterEntryKey] = useState(0); // 切换方案后强制重播榜单中心入场链路
@@ -84,6 +85,7 @@ export default function Index() {
       // 缩回即刻入口轻微放大回弹（不等落位）
       setAceExit("zoom");
       setIconBounceKey((k) => k + 1);
+      setIconAnimArmed(true);
       aceExitTimerRef.current = window.setTimeout(() => {
         aceExitTimerRef.current = null;
         setAnimOn(false); // 落位后无过渡归位（此时面板已淡出，不可见）
@@ -108,6 +110,7 @@ export default function Index() {
     }
     setAce("closed");
     // 王牌菜榜下滑收起后，榜单中心页的王牌菜榜 icon 按当前方案播放强化动效
+    setIconAnimArmed(true);
     window.setTimeout(() => setIconBounceKey((k) => k + 1), 420);
   }, []);
 
@@ -133,6 +136,7 @@ export default function Index() {
   const showAce = useCallback(() => {
     clearAceExit();
     setAce("open");
+    setIconAnimArmed(false); // 进入王牌菜榜后重置：下次进入榜单中心页 icon 不播动效，退出后才播
     try {
       const win = iframeRef.current?.contentWindow;
       win?.postMessage("ace:reset-tab", "*");
@@ -152,7 +156,8 @@ export default function Index() {
     setAnimOn(false);
     setScheme(id);
     setAce("closed");
-    setScreen("center"); // 切换方案后直接进入榜单中心页，立即展示该方案的入口动效
+    setScreen("home"); // 切换方案后返回首页，由用户从首页走完整链路
+    setIconAnimArmed(false); // 从首页重新进入时 icon 不播动效，退出后才播
     setCenterEntryKey((k) => k + 1);
     window.setTimeout(() => setAnimOn(true), 80);
   };
@@ -240,7 +245,7 @@ export default function Index() {
                 {/* 点评榜单入口热区 */}
                 <button
                   aria-label="点评榜单入口"
-                  onClick={() => setScreen("center")}
+                  onClick={() => { setScreen("center"); setIconAnimArmed(false); }}
                   className="absolute rounded-xl active:bg-black/5"
                   style={{ left: "1.4%", top: "35.6%", width: "48.2%", height: "10.4%" }}
                 />
@@ -265,11 +270,11 @@ export default function Index() {
                   className="absolute pointer-events-none"
                   style={{ left: "9.6%", top: "30.6%", width: "10.3%", height: "4.74%" }}
                 >
-                  <div className={`icon-inner icon-inner--${scheme} absolute inset-0 overflow-hidden`}>
+                  <div className={`icon-inner ${iconAnimArmed ? `icon-inner--${scheme}` : ""} absolute inset-0 overflow-hidden`}>
                     <img src={aceIconImg} alt="王牌菜榜" className="w-full h-full" draggable={false} />
-                    {scheme === "origin" && <div className="icon-beam icon-beam--origin absolute inset-0" />}
-                    {scheme === "s1" && <div className="icon-beam icon-beam--s1 absolute inset-0" />}
-                    {scheme === "s2" && <div className="icon-beam icon-beam--s2 absolute inset-0" />}
+                    {iconAnimArmed && scheme === "origin" && <div className="icon-beam icon-beam--origin absolute inset-0" />}
+                    {iconAnimArmed && scheme === "s1" && <div className="icon-beam icon-beam--s1 absolute inset-0" />}
+                    {iconAnimArmed && scheme === "s2" && <div className="icon-beam icon-beam--s2 absolute inset-0" />}
                   </div>
                 </div>
                 {/* 王牌菜榜入口热区 */}
