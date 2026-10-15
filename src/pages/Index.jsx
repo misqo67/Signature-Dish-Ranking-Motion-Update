@@ -172,13 +172,14 @@ export default function Index() {
         }
         .icon-inner--s1 { animation: icon-pop 0.6s cubic-bezier(0.34, 1.4, 0.64, 1) both; }
         .icon-beam--s1 { animation: icon-beam-sweep 1.6s cubic-bezier(0.45, 0, 0.25, 1) 0.55s both; }
-        /* 方案二：面板从入口处散开的瞬间，入口轻微放大再回到原尺寸（稍快） */
+        /* 方案二：面板散开瞬间入口大幅回弹，结束后接一道扫光 */
         @keyframes icon-settle {
           0% { transform: scale(1); }
-          40% { transform: scale(1.18); }
+          40% { transform: scale(1.32); }
           100% { transform: scale(1); }
         }
         .icon-inner--s2 { animation: icon-settle 0.4s cubic-bezier(0.34, 1.4, 0.64, 1) 0.3s both; }
+        .icon-beam--s2 { animation: icon-beam-sweep 1.6s cubic-bezier(0.45, 0, 0.25, 1) 0.72s both; }
       `}</style>
       {/* 手机屏幕（自适应不同屏幕尺寸，无外壳描边与圆角） */}
       <div className="relative" style={{ width: SCREEN_W * scale, height: SCREEN_H * scale }}>
@@ -240,6 +241,7 @@ export default function Index() {
                     <img src={aceIconImg} alt="王牌菜榜" className="w-full h-full" draggable={false} />
                     {scheme === "origin" && <div className="icon-beam icon-beam--origin absolute inset-0" />}
                     {scheme === "s1" && <div className="icon-beam icon-beam--s1 absolute inset-0" />}
+                    {scheme === "s2" && <div className="icon-beam icon-beam--s2 absolute inset-0" />}
                   </div>
                 </div>
                 {/* 王牌菜榜入口热区 */}
