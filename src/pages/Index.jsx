@@ -31,8 +31,9 @@ const SCHEMES = [
   { id: "s3", label: "方案四 · 聚光灯+引导提示", short: "方案四", note: "【影响操作流程性】" },
 ];
 
-/* 方案三：面板缩回王牌菜榜入口的目标位（icon 位于榜单中心页 left 9.6% / top 30.6%，宽 10.3%） */
-const ACE_EXIT_TRANSFORM = `translate(${(SCREEN_W * 0.096).toFixed(2)}px, ${(SCREEN_H * 0.306).toFixed(2)}px) scale(0.103)`;
+/* 方案三：两段式缩回 —— 先原地居中缩至 90%，再位移至入口中心同时缩 90%→0（icon 位于榜单中心页 left 9.6% / top 30.6%，宽 10.3%） */
+const ACE_EXIT_SHRINK = `translate(${(SCREEN_W * 0.05).toFixed(2)}px, ${(SCREEN_H * 0.05).toFixed(2)}px) scale(0.9)`;
+const ACE_EXIT_MOVE = `translate(${(SCREEN_W * 0.096 + SCREEN_W * 0.103 / 2).toFixed(2)}px, ${(SCREEN_H * 0.306 + SCREEN_W * 0.103 / 2).toFixed(2)}px) scale(0)`;
 
 /* 各方案共用方案B 的 ace 页形态（上滑整页/返回箭头） */
 const aceModeOf = () => "up";
@@ -45,6 +46,7 @@ export default function Index() {
   const [screen, setScreen] = useState("home"); // home | center
   const [ace, setAce] = useState("closed"); // closed | open(整页)
   const [aceExit, setAceExit] = useState("none"); // none | zoom(方案三 关闭缩回入口)
+  const [exitStage, setExitStage] = useState("none"); // none | shrink(原地缩至90%) | move(位移至入口同时缩90%→0)
   const [spotlightOn, setSpotlightOn] = useState(false); // 方案四：退出后聚光灯引导提示
   const [aceLoaded, setAceLoaded] = useState(false); // 王牌菜榜页是否加载完成
   const [iconBounceKey, setIconBounceKey] = useState(0); // 王牌菜榜 icon 强化动效重放计数（从王牌菜榜返回榜单中心时）
@@ -58,7 +60,22 @@ export default function Index() {
   const schemeRef = useRef(scheme);
   const aceExitTimerRef = useRef(null);
   useEffect(() => { schemeRef.current = scheme; }, [scheme]);
+  const closeAceRef = useRef(null);
 
+  // 预加载掀盖动画帧图，避免方案二退出时 icon 短暂空窗闪一下
+  useEffect(() => {
+    const img = new Image();
+    img.src = aceMotionImg;
+  }, []);
+
+  // ace 页内下拉关闭手势：收到消息后按当前方案执行退出动画
+  useEffect(() => {
+    const onMsg = (e) => {
+      if (e && e.data === "ace:pulldown-close") closeAceRef.current();
+    };
+    window.addEventListener("message", onMsg);
+    return () => window.removeEventListener("message", onMsg);
+  }, []);
   // 自适应不同屏幕尺寸：完整呈现手机屏幕（390×844）
   useEffect(() => {
     const fit = () => {
@@ -82,23 +99,30 @@ export default function Index() {
       aceExitTimerRef.current = null;
     }
     setAceExit("none");
+    setExitStage("none");
     setSpotlightOn(false);
   };
 
   const closeAce = useCallback(() => {
     if (schemeRef.current === "s2") {
-      // 方案三：全屏王牌菜榜缩小、位移至王牌菜榜入口（缓入缓出）；
+      // 方案三：先原地缩小至 90%，再位移至王牌菜榜入口，位移同时从 90% 缩到 0；
       // 缩回即刻入口轻微放大回弹（不等落位）
       setAceExit("zoom");
+      setExitStage("shrink");
       setIconBounceKey((k) => k + 1);
       setIconAnimArmed(true);
       aceExitTimerRef.current = window.setTimeout(() => {
-        aceExitTimerRef.current = null;
-        setAnimOn(false); // 落位后无过渡归位（此时面板已淡出，不可见）
-        setAce("closed");
-        setAceExit("none");
-        window.setTimeout(() => setAnimOn(true), 60);
-      }, 500);
+        // 原地缩至 90% 后开始位移（90%→0）
+        setExitStage("move");
+        aceExitTimerRef.current = window.setTimeout(() => {
+          aceExitTimerRef.current = null;
+          setAnimOn(false); // 落位后无过渡归位（此时面板已淡出，不可见）
+          setAce("closed");
+          setAceExit("none");
+          setExitStage("none");
+          window.setTimeout(() => setAnimOn(true), 60);
+        }, 360);
+      }, 180);
       return;
     }
     if (schemeRef.current === "s3") {
@@ -122,6 +146,8 @@ export default function Index() {
       setIconBounceKey((k) => k + 1);
     }, 420);
   }, []);
+
+  useEffect(() => { closeAceRef.current = closeAce; }, [closeAce]);
 
   // 方案四：点击「我知道了」或蒙层提前关闭聚光灯提示
   const dismissSpotlight = useCallback(() => {
@@ -280,18 +306,21 @@ export default function Index() {
                   style={{ left: "9.6%", top: "30.6%", width: "10.3%", height: "4.74%" }}
                 >
                   <div className={`icon-inner ${iconAnimArmed ? `icon-inner--${scheme}` : ""} absolute inset-0 overflow-hidden`}>
+                    {/* 底层默认 icon（方案二=餐盖首帧，其他=徽章）；掀盖动画叠加在上方，切换时无空窗闪烁 */}
                     <img
-                      src={
-                        scheme === "s4"
-                          ? iconAnimArmed
-                            ? aceMotionImg
-                            : aceClocheImg
-                          : aceIconImg
-                      }
+                      src={scheme === "s4" ? aceClocheImg : aceIconImg}
                       alt="王牌菜榜"
-                      className="w-full h-full"
+                      className="absolute inset-0 w-full h-full"
                       draggable={false}
                     />
+                    {iconAnimArmed && scheme === "s4" && (
+                      <img
+                        src={aceMotionImg}
+                        alt=""
+                        className="absolute inset-0 w-full h-full"
+                        draggable={false}
+                      />
+                    )}
                     {iconAnimArmed && scheme === "origin" && <div className="icon-beam icon-beam--origin absolute inset-0" />}
                     {iconAnimArmed && scheme === "s1" && <div className="icon-beam icon-beam--s1 absolute inset-0" />}
                     {iconAnimArmed && scheme === "s2" && <div className="icon-beam icon-beam--s2 absolute inset-0" />}
@@ -368,13 +397,22 @@ boxShadow: "0 4px 12px rgba(0,0,0,0.25)",
               style={{
                 height: SCREEN_H,
                 background: "#1A1008",
-                transform: aceExiting ? ACE_EXIT_TRANSFORM : ace === "closed" ? closedTransform : "translate(0, 0)",
+                transform:
+                  exitStage === "shrink"
+                    ? ACE_EXIT_SHRINK
+                    : exitStage === "move"
+                      ? ACE_EXIT_MOVE
+                      : ace === "closed"
+                        ? closedTransform
+                        : "translate(0, 0)",
                 transition: !animOn
                   ? "none"
-                  : aceExiting
-                    ? `transform 0.45s ${EASE_IN_OUT}, opacity 0.25s ease 0.08s`
-                    : `transform 0.38s ${EASE}`,
-                opacity: aceExiting ? 0 : 1,
+                  : exitStage === "shrink"
+                    ? `transform 0.18s ${EASE_IN_OUT}`
+                    : exitStage === "move"
+                      ? `transform 0.36s ${EASE_IN_OUT}, opacity 0.22s ease 0.06s`
+                      : `transform 0.38s ${EASE}`,
+                opacity: exitStage === "move" ? 0 : 1,
                 transformOrigin: "top left",
                 boxShadow: "0 -8px 30px rgba(0,0,0,0.18)",
                 pointerEvents: ace === "closed" || aceExiting ? "none" : "auto",

@@ -1878,6 +1878,22 @@ document.querySelectorAll('.shop-card-img[data-href]').forEach(function(card) {
       });
       updateTabMode();
     }
+    // 下拉关闭：页面处于顶部时继续下拉超过阈值，通知父页面关闭王牌菜榜
+    (function () {
+      var pullStartY = null;
+      window.addEventListener('touchstart', function (e) {
+        pullStartY = window.scrollY <= 0 ? e.touches[0].clientY : null;
+      }, { passive: true });
+      window.addEventListener('touchmove', function (e) {
+        if (pullStartY === null) return;
+        if (window.scrollY > 0) { pullStartY = null; return; }
+        if (e.touches[0].clientY - pullStartY > 90) {
+          pullStartY = null;
+          try { window.parent.postMessage('ace:pulldown-close', '*'); } catch (err) {}
+        }
+      }, { passive: true });
+      window.addEventListener('touchend', function () { pullStartY = null; }, { passive: true });
+    })();
     window.addEventListener('message', function (e) {
       if (e && e.data === 'ace:reset-tab') {
         window.scrollTo(0, 0);
