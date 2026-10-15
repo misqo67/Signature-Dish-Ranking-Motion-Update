@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import homePageImg from "../assets/homepage.webp";
 import centerPageImg from "../assets/ranking-center.webp";
-import aceIconImg from "../assets/ace-icon.webp";
+import aceIconImg from "../assets/ace-icon-f0.webp"; // 榜单中心页 icon 默认态 = 动画第一帧（与方案四动画首帧一致）
 import aceMotionImg from "../assets/ace-motion.webp"; // 方案四：退出后播放一次的徽章动效（停末帧）
 
 const SCREEN_W = 390;
@@ -17,7 +17,8 @@ const SCREEN_H = 844;
            入口保持明亮并出现「在这里，再看王牌菜榜」提示，
            短暂停留后自动消失、亮度恢复
    方案四：与原方案相同的下滑收起；收起后入口播放徽章动画
-           （餐盖加冕再掀开，4s），播放完停在最后一帧
+           （餐盖加冕再掀开，4s），播放完停在最后一帧；
+           榜单中心页 icon 默认态改为动画第一帧，衔接无跳变
    各方案共用方案B 的王牌菜榜入场形态（上滑整页/返回箭头），
    首页→榜单中心→王牌菜榜 全链路保持不变
    ============================================================ */
