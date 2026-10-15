@@ -28,6 +28,7 @@ const ACE_EXIT_TRANSFORM = `translate(${(SCREEN_W * 0.096).toFixed(2)}px, ${(SCR
 const aceModeOf = () => "up";
 
 const EASE = "cubic-bezier(0.22, 1, 0.36, 1)"; /* 快出 + 明显缓收，上滑更利落 */
+const EASE_IN_OUT = "cubic-bezier(0.45, 0.05, 0.25, 1)"; /* 缓入缓出，方案二缩回用 */
 
 export default function Index() {
   const [scheme, setScheme] = useState("origin");
@@ -73,14 +74,15 @@ export default function Index() {
 
   const closeAce = useCallback(() => {
     if (schemeRef.current === "s2") {
-      // 方案二：全屏王牌菜榜缩小、位移至王牌菜榜入口，落位后入口轻微放大回弹
+      // 方案二：全屏王牌菜榜缩小、位移至王牌菜榜入口（缓入缓出）；
+      // 缩回即刻入口轻微放大回弹（不等落位）
       setAceExit("zoom");
+      setIconBounceKey((k) => k + 1);
       aceExitTimerRef.current = window.setTimeout(() => {
         aceExitTimerRef.current = null;
         setAnimOn(false); // 落位后无过渡归位（此时面板已淡出，不可见）
         setAce("closed");
         setAceExit("none");
-        setIconBounceKey((k) => k + 1); // 落位后入口轻微放大再回到原尺寸
         window.setTimeout(() => setAnimOn(true), 60);
       }, 500);
       return;
@@ -170,13 +172,13 @@ export default function Index() {
         }
         .icon-inner--s1 { animation: icon-pop 0.6s cubic-bezier(0.34, 1.4, 0.64, 1) both; }
         .icon-beam--s1 { animation: icon-beam-sweep 1.6s cubic-bezier(0.45, 0, 0.25, 1) 0.55s both; }
-        /* 方案二：王牌菜榜整页落位后，入口轻微放大再回到原尺寸 */
+        /* 方案二：缩回即刻，入口轻微放大再回到原尺寸（稍快） */
         @keyframes icon-settle {
           0% { transform: scale(1); }
           40% { transform: scale(1.18); }
           100% { transform: scale(1); }
         }
-        .icon-inner--s2 { animation: icon-settle 0.5s cubic-bezier(0.34, 1.4, 0.64, 1) 0.1s both; }
+        .icon-inner--s2 { animation: icon-settle 0.38s cubic-bezier(0.34, 1.4, 0.64, 1) both; }
       `}</style>
       {/* 手机屏幕（自适应不同屏幕尺寸，无外壳描边与圆角） */}
       <div className="relative" style={{ width: SCREEN_W * scale, height: SCREEN_H * scale }}>
@@ -193,7 +195,9 @@ export default function Index() {
             <div
               className="absolute inset-0"
               style={{
-                transition: animOn ? `transform 0.45s ${EASE}, filter 0.45s ${EASE}` : "none",
+                transition: animOn
+                  ? `transform 0.45s ${aceExiting ? EASE_IN_OUT : EASE}, filter 0.45s ${aceExiting ? EASE_IN_OUT : EASE}`
+                  : "none",
                 transform: aceFull && !aceExiting ? "scale(0.96)" : "none",
                 filter: isAceVisible && !aceExiting ? "brightness(0.92)" : "none",
               }}
@@ -259,7 +263,7 @@ export default function Index() {
                 transition: !animOn
                   ? "none"
                   : aceExiting
-                    ? `transform 0.45s ${EASE}, opacity 0.27s ease 0.18s`
+                    ? `transform 0.45s ${EASE_IN_OUT}, opacity 0.27s ease 0.18s`
                     : `transform 0.38s ${EASE}`,
                 opacity: aceExiting ? 0 : 1,
                 transformOrigin: "top left",
