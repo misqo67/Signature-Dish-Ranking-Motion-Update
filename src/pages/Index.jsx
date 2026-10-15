@@ -10,15 +10,21 @@ const SCREEN_H = 844;
    王牌菜榜入口强化动效（基于原方案 = 承接方案二的方案B）
    原方案：现有动效 —— 返回榜单中心时 icon 单道白色扫光（1.6s）
    方案一：从王牌菜榜下滑退出后，icon 先放大再扫光
-   两个方案共用方案B 的王牌菜榜入场形态（上滑整页/返回箭头），
+   方案二：关闭时全屏王牌菜榜缩小、位移至王牌菜榜入口，
+           落位后入口轻微放大再回到原尺寸
+   各方案共用方案B 的王牌菜榜入场形态（上滑整页/返回箭头），
    首页→榜单中心→王牌菜榜 全链路保持不变
    ============================================================ */
 const SCHEMES = [
   { id: "origin", label: "原方案 · 上滑整页（现状）", short: "原方案" },
   { id: "s1", label: "方案一 · 退出时放大+扫光", short: "方案一" },
+  { id: "s2", label: "方案二 · 关闭缩回入口", short: "方案二" },
 ];
 
-/* 两个方案共用方案B 的 ace 页形态（上滑整页/返回箭头） */
+/* 方案二：面板缩回王牌菜榜入口的目标位（icon 位于榜单中心页 left 9.6% / top 30.6%，宽 10.3%） */
+const ACE_EXIT_TRANSFORM = `translate(${(SCREEN_W * 0.096).toFixed(2)}px, ${(SCREEN_H * 0.306).toFixed(2)}px) scale(0.103)`;
+
+/* 各方案共用方案B 的 ace 页形态（上滑整页/返回箭头） */
 const aceModeOf = () => "up";
 
 const EASE = "cubic-bezier(0.22, 1, 0.36, 1)"; /* 快出 + 明显缓收，上滑更利落 */
@@ -27,6 +33,7 @@ export default function Index() {
   const [scheme, setScheme] = useState("origin");
   const [screen, setScreen] = useState("home"); // home | center
   const [ace, setAce] = useState("closed"); // closed | open(整页)
+  const [aceExit, setAceExit] = useState("none"); // none | zoom(方案二 关闭缩回入口)
   const [aceLoaded, setAceLoaded] = useState(false); // 王牌菜榜页是否加载完成
   const [iconBounceKey, setIconBounceKey] = useState(0); // 王牌菜榜 icon 强化动效重放计数（从王牌菜榜返回榜单中心时）
   const [animOn, setAnimOn] = useState(true); // 切换方案瞬间关闭过渡，避免穿帮
@@ -36,6 +43,7 @@ export default function Index() {
   const scaleRef = useRef(1);
   const iframeRef = useRef(null);
   const schemeRef = useRef(scheme);
+  const aceExitTimerRef = useRef(null);
   useEffect(() => { schemeRef.current = scheme; }, [scheme]);
 
   // 自适应不同屏幕尺寸：完整呈现手机屏幕（390×844）
@@ -55,7 +63,28 @@ export default function Index() {
 
   // 演示画面固定 780×1688（2x），居中呈现
 
+  const clearAceExit = () => {
+    if (aceExitTimerRef.current) {
+      window.clearTimeout(aceExitTimerRef.current);
+      aceExitTimerRef.current = null;
+    }
+    setAceExit("none");
+  };
+
   const closeAce = useCallback(() => {
+    if (schemeRef.current === "s2") {
+      // 方案二：全屏王牌菜榜缩小、位移至王牌菜榜入口，落位后入口轻微放大回弹
+      setAceExit("zoom");
+      aceExitTimerRef.current = window.setTimeout(() => {
+        aceExitTimerRef.current = null;
+        setAnimOn(false); // 落位后无过渡归位（此时面板已淡出，不可见）
+        setAce("closed");
+        setAceExit("none");
+        setIconBounceKey((k) => k + 1); // 落位后入口轻微放大再回到原尺寸
+        window.setTimeout(() => setAnimOn(true), 60);
+      }, 500);
+      return;
+    }
     setAce("closed");
     // 王牌菜榜下滑收起后，榜单中心页的王牌菜榜 icon 按当前方案播放强化动效
     window.setTimeout(() => setIconBounceKey((k) => k + 1), 420);
@@ -72,6 +101,7 @@ export default function Index() {
 
   // 打开王牌菜榜：重置到白斩鸡榜 tab，并同步返回图标形态（上滑=返回箭头）
   const showAce = useCallback(() => {
+    clearAceExit();
     setAce("open");
     try {
       const win = iframeRef.current?.contentWindow;
@@ -88,6 +118,7 @@ export default function Index() {
 
   const switchScheme = (id) => {
     if (id === scheme) return;
+    clearAceExit();
     setAnimOn(false);
     setScheme(id);
     setAce("closed");
@@ -111,6 +142,7 @@ export default function Index() {
 
   const isAceVisible = ace !== "closed";
   const aceFull = ace === "open";
+  const aceExiting = aceExit === "zoom"; // 方案二：面板正在缩回入口
 
   // 常驻面板：一个容器承载全部方案，iframe 只加载一次
   const closedTransform = "translateY(100%)";
@@ -138,6 +170,13 @@ export default function Index() {
         }
         .icon-inner--s1 { animation: icon-pop 0.6s cubic-bezier(0.34, 1.4, 0.64, 1) both; }
         .icon-beam--s1 { animation: icon-beam-sweep 1.6s cubic-bezier(0.45, 0, 0.25, 1) 0.55s both; }
+        /* 方案二：王牌菜榜整页落位后，入口轻微放大再回到原尺寸 */
+        @keyframes icon-settle {
+          0% { transform: scale(1); }
+          40% { transform: scale(1.18); }
+          100% { transform: scale(1); }
+        }
+        .icon-inner--s2 { animation: icon-settle 0.5s cubic-bezier(0.34, 1.4, 0.64, 1) 0.1s both; }
       `}</style>
       {/* 手机屏幕（自适应不同屏幕尺寸，无外壳描边与圆角） */}
       <div className="relative" style={{ width: SCREEN_W * scale, height: SCREEN_H * scale }}>
@@ -155,8 +194,8 @@ export default function Index() {
               className="absolute inset-0"
               style={{
                 transition: animOn ? `transform 0.45s ${EASE}, filter 0.45s ${EASE}` : "none",
-                transform: aceFull ? "scale(0.96)" : "none",
-                filter: isAceVisible ? "brightness(0.92)" : "none",
+                transform: aceFull && !aceExiting ? "scale(0.96)" : "none",
+                filter: isAceVisible && !aceExiting ? "brightness(0.92)" : "none",
               }}
             >
               {/* 首页 */}
@@ -209,16 +248,23 @@ export default function Index() {
               </div>
             </div>
 
-            {/* ===== 王牌菜榜常驻面板（iframe 预加载，仅加载一次）===== */}
+            {/* ===== 王牌菜榜常驻面板（iframe 预加载，仅加载一次）=====
+                方案二关闭时：整页缩小、位移至王牌菜榜入口并淡出，落位后入口回弹 */}
             <div
               className="absolute left-0 right-0 bottom-0 z-30 overflow-hidden"
               style={{
                 height: SCREEN_H,
                 background: "#1A1008",
-                transform: ace === "closed" ? closedTransform : "translate(0, 0)",
-                transition: !animOn ? "none" : `transform 0.38s ${EASE}`,
+                transform: aceExiting ? ACE_EXIT_TRANSFORM : ace === "closed" ? closedTransform : "translate(0, 0)",
+                transition: !animOn
+                  ? "none"
+                  : aceExiting
+                    ? `transform 0.45s ${EASE}, opacity 0.27s ease 0.18s`
+                    : `transform 0.38s ${EASE}`,
+                opacity: aceExiting ? 0 : 1,
+                transformOrigin: "top left",
                 boxShadow: "0 -8px 30px rgba(0,0,0,0.18)",
-                pointerEvents: ace === "closed" ? "none" : "auto",
+                pointerEvents: ace === "closed" || aceExiting ? "none" : "auto",
               }}
             >
               {aceDocUrl && (
@@ -242,7 +288,7 @@ export default function Index() {
               />
               )}
               {/* 整页态：状态栏浮在王牌菜榜顶部安全区之上（页面自身预留了 54px 状态栏空间） */}
-              {aceFull && (
+              {aceFull && !aceExiting && (
                 <div
                   className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between pointer-events-none"
                   style={{ height: 54, paddingLeft: 30, paddingRight: 24 }}
@@ -278,7 +324,7 @@ export default function Index() {
             </div>
 
             {/* ===== 王牌菜榜页内返回热区（覆盖原生返回按钮位置）===== */}
-            {isAceVisible && (
+            {isAceVisible && !aceExiting && (
               <button
                 aria-label="返回榜单中心页"
                 onClick={closeAce}
