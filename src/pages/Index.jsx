@@ -11,7 +11,10 @@ const SCREEN_H = 844;
    原方案：现有动效 —— 返回榜单中心时 icon 单道白色扫光（1.6s）
    方案一：从王牌菜榜下滑退出后，icon 先放大再扫光
    方案二：关闭时全屏王牌菜榜缩小、位移至王牌菜榜入口，
-           落位后入口轻微放大再回到原尺寸
+           入口轻微放大回弹，结束后接一道扫光
+   方案三：与原方案相同的下滑收起；收起后周边内容短暂压暗，
+           入口保持明亮并出现「在这里，再看王牌菜榜」提示，
+           短暂停留后自动消失、亮度恢复
    各方案共用方案B 的王牌菜榜入场形态（上滑整页/返回箭头），
    首页→榜单中心→王牌菜榜 全链路保持不变
    ============================================================ */
@@ -19,6 +22,7 @@ const SCHEMES = [
   { id: "origin", label: "原方案 · 上滑整页（现状）", short: "原方案" },
   { id: "s1", label: "方案一 · 退出时放大+扫光", short: "方案一" },
   { id: "s2", label: "方案二 · 关闭缩回入口", short: "方案二" },
+  { id: "s3", label: "方案三 · 聚光灯+引导提示", short: "方案三" },
 ];
 
 /* 方案二：面板缩回王牌菜榜入口的目标位（icon 位于榜单中心页 left 9.6% / top 30.6%，宽 10.3%） */
@@ -35,6 +39,7 @@ export default function Index() {
   const [screen, setScreen] = useState("home"); // home | center
   const [ace, setAce] = useState("closed"); // closed | open(整页)
   const [aceExit, setAceExit] = useState("none"); // none | zoom(方案二 关闭缩回入口)
+  const [spotlightOn, setSpotlightOn] = useState(false); // 方案三：退出后聚光灯引导提示
   const [aceLoaded, setAceLoaded] = useState(false); // 王牌菜榜页是否加载完成
   const [iconBounceKey, setIconBounceKey] = useState(0); // 王牌菜榜 icon 强化动效重放计数（从王牌菜榜返回榜单中心时）
   const [animOn, setAnimOn] = useState(true); // 切换方案瞬间关闭过渡，避免穿帮
@@ -70,6 +75,7 @@ export default function Index() {
       aceExitTimerRef.current = null;
     }
     setAceExit("none");
+    setSpotlightOn(false);
   };
 
   const closeAce = useCallback(() => {
@@ -87,9 +93,31 @@ export default function Index() {
       }, 500);
       return;
     }
+    if (schemeRef.current === "s3") {
+      // 方案三：与原方案相同下滑收起；收起后周边压暗、入口保持明亮并出现提示，短暂停留后消失
+      setAce("closed");
+      aceExitTimerRef.current = window.setTimeout(() => {
+        aceExitTimerRef.current = null;
+        setSpotlightOn(true);
+        aceExitTimerRef.current = window.setTimeout(() => {
+          aceExitTimerRef.current = null;
+          setSpotlightOn(false);
+        }, 2400);
+      }, 480);
+      return;
+    }
     setAce("closed");
     // 王牌菜榜下滑收起后，榜单中心页的王牌菜榜 icon 按当前方案播放强化动效
     window.setTimeout(() => setIconBounceKey((k) => k + 1), 420);
+  }, []);
+
+  // 方案三：点击「我知道了」或蒙层提前关闭聚光灯提示
+  const dismissSpotlight = useCallback(() => {
+    if (aceExitTimerRef.current) {
+      window.clearTimeout(aceExitTimerRef.current);
+      aceExitTimerRef.current = null;
+    }
+    setSpotlightOn(false);
   }, []);
 
   // 每次进入王牌菜榜后，榜首（苏小柳点心）商卡橙色描边闪动 3 次
@@ -254,8 +282,70 @@ export default function Index() {
               </div>
             </div>
 
-            {/* ===== 王牌菜榜常驻面板（iframe 预加载，仅加载一次）=====
-                方案二关闭时：整页缩小、位移至王牌菜榜入口并淡出，落位后入口回弹 */}
+{/* ===== 方案三：聚光灯引导（周边压暗、入口保持明亮 + 引导提示）===== */}
+{scheme === "s3" && (
+<div
+className="absolute inset-0 z-20 transition-opacity duration-300"
+style={{
+opacity: spotlightOn ? 1 : 0,
+pointerEvents: spotlightOn ? "auto" : "none",
+background: "rgba(17, 17, 17, 0.82)",
+}}
+onClick={dismissSpotlight}
+>
+{/* 入口白卡：保持在暗色蒙层之上，形成「聚光灯」聚焦 */}
+<div
+className="absolute flex flex-col items-center justify-center"
+style={{
+left: "5.5%",
+top: "30.4%",
+width: "17%",
+height: "8.6%",
+background: "#fff",
+borderRadius: 12,
+boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
+transform: spotlightOn ? "scale(1)" : "scale(0.9)",
+transition: "transform 0.3s cubic-bezier(0.34, 1.4, 0.64, 1)",
+}}
+>
+<img src={aceIconImg} alt="王牌菜榜" className="w-[46%] h-auto" draggable={false} />
+<span style={{ fontSize: 9, fontWeight: 600, color: "#111", marginTop: 2 }}>王牌菜榜</span>
+</div>
+{/* 引导提示 + 我知道了按钮 */}
+<div
+className="absolute"
+style={{
+left: "25.5%",
+top: "30.8%",
+opacity: spotlightOn ? 1 : 0,
+transform: spotlightOn ? "translateY(0)" : "translateY(6px)",
+transition: "opacity 0.25s ease 0.1s, transform 0.25s ease 0.1s",
+}}
+>
+<div style={{ fontSize: 17, fontWeight: 700, color: "#fff", whiteSpace: "nowrap", letterSpacing: 0.5 }}>
+在这里，再看<span style={{ color: "#FF6633" }}>「王牌菜榜」</span>
+</div>
+<button
+onClick={dismissSpotlight}
+style={{
+marginTop: 14,
+background: "#fff",
+color: "#111",
+fontSize: 13,
+fontWeight: 600,
+borderRadius: 9999,
+padding: "7px 22px",
+boxShadow: "0 4px 12px rgba(0,0,0,0.25)",
+}}
+>
+我知道了
+</button>
+</div>
+</div>
+)}
+
+{/* ===== 王牌菜榜常驻面板（iframe 预加载，仅加载一次）=====
+方案二关闭时：整页缩小、位移至王牌菜榜入口并淡出，落位后入口回弹 */}
             <div
               className="absolute left-0 right-0 bottom-0 z-30 overflow-hidden"
               style={{
