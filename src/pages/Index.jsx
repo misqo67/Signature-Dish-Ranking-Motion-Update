@@ -408,11 +408,13 @@ boxShadow: "0 4px 12px rgba(0,0,0,0.25)",
                 transition: !animOn
                   ? "none"
                   : exitStage === "shrink"
-                    ? `transform 0.18s ${EASE_IN_OUT}`
+                    ? `transform 0.18s ${EASE_IN_OUT}, border-radius 0.18s ${EASE_IN_OUT}`
                     : exitStage === "move"
-                      ? `transform 0.36s ${EASE_IN_OUT}, opacity 0.22s ease 0.06s`
+                      ? `transform 0.36s ${EASE_IN_OUT}, opacity 0.22s ease 0.06s, border-radius 0.36s ${EASE_IN_OUT}`
                       : `transform 0.38s ${EASE}`,
                 opacity: exitStage === "move" ? 0 : 1,
+                /* 方案三退出：缩至 90% 起四角变 20px 圆角，随面板一起缩小位移 */
+                borderRadius: exitStage !== "none" ? 20 : 0,
                 transformOrigin: "top left",
                 boxShadow: "0 -8px 30px rgba(0,0,0,0.18)",
                 pointerEvents: ace === "closed" || aceExiting ? "none" : "auto",
