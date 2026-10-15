@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import homePageImg from "../assets/homepage.webp";
 import centerPageImg from "../assets/ranking-center.webp";
-import aceIconImg from "../assets/ace-icon-f0.webp"; // 榜单中心页 icon 默认态 = 动画第一帧（与方案四动画首帧一致）
-import aceMotionImg from "../assets/ace-motion.webp"; // 方案四：退出后播放一次的徽章动效（停末帧）
+import aceIconImg from "../assets/ace-icon.webp"; // 榜单中心页 icon 默认态（王牌菜徽章，原方案/一/二/三）
+import aceClocheImg from "../assets/ace-icon-cloche.webp"; // 方案四默认态 = 新动画第一帧（橙色餐盖）
+import aceMotionImg from "../assets/ace-motion.webp"; // 方案四：退出后播放一次的掀盖动画（餐盖掹开露徽章，停末帧）
 
 const SCREEN_W = 390;
 const SCREEN_H = 844;
@@ -16,9 +17,9 @@ const SCREEN_H = 844;
    方案三：与原方案相同的下滑收起；收起后周边内容短暂压暗，
            入口保持明亮并出现「在这里，再看王牌菜榜」提示，
            短暂停留后自动消失、亮度恢复
-   方案四：与原方案相同的下滑收起；收起后入口播放徽章动画
-           （餐盖加冕再掀开，4s），播放完停在最后一帧；
-           榜单中心页 icon 默认态改为动画第一帧，衔接无跳变
+   方案四：与原方案相同的下滑收起；默认态 icon 为橙色餐盖
+           （新动画第一帧），收起后播放掀盖动画（餐盖掹开
+           露出王牌菜徽章，4s），播放完停在末帧（徽章）
    各方案共用方案B 的王牌菜榜入场形态（上滑整页/返回箭头），
    首页→榜单中心→王牌菜榜 全链路保持不变
    ============================================================ */
@@ -280,7 +281,13 @@ export default function Index() {
                 >
                   <div className={`icon-inner ${iconAnimArmed ? `icon-inner--${scheme}` : ""} absolute inset-0 overflow-hidden`}>
                     <img
-                      src={scheme === "s4" && iconAnimArmed ? aceMotionImg : aceIconImg}
+                      src={
+                        scheme === "s4"
+                          ? iconAnimArmed
+                            ? aceMotionImg
+                            : aceClocheImg
+                          : aceIconImg
+                      }
                       alt="王牌菜榜"
                       className="w-full h-full"
                       draggable={false}
