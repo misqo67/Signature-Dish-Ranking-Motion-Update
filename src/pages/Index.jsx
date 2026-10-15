@@ -26,9 +26,9 @@ const SCREEN_H = 844;
 const SCHEMES = [
   { id: "origin", label: "原方案 · 上滑整页（现状）", short: "原方案" },
   { id: "s1", label: "方案一 · 退出时放大+扫光", short: "方案一", note: "【推荐】" },
+  { id: "s4", label: "方案四 · 掀盖动画停末帧", short: "方案四" },
   { id: "s2", label: "方案二 · 关闭缩回入口", short: "方案二", note: "【会有跟手交互问题】" },
   { id: "s3", label: "方案三 · 聚光灯+引导提示", short: "方案三", note: "【影响操作流程性】" },
-  { id: "s4", label: "方案四 · 徽章动画停末帧", short: "方案四" },
 ];
 
 /* 方案二：面板缩回王牌菜榜入口的目标位（icon 位于榜单中心页 left 9.6% / top 30.6%，宽 10.3%） */
