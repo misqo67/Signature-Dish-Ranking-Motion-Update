@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import homePageImg from "../assets/homepage.webp";
 import centerPageImg from "../assets/ranking-center.webp";
 import aceIconImg from "../assets/ace-icon.webp";
+import aceMotionImg from "../assets/ace-motion.webp"; // 方案四：退出后播放一次的徽章动效（停末帧）
 
 const SCREEN_W = 390;
 const SCREEN_H = 844;
@@ -15,6 +16,8 @@ const SCREEN_H = 844;
    方案三：与原方案相同的下滑收起；收起后周边内容短暂压暗，
            入口保持明亮并出现「在这里，再看王牌菜榜」提示，
            短暂停留后自动消失、亮度恢复
+   方案四：与原方案相同的下滑收起；收起后入口播放徽章动画
+           （餐盖加冕再掀开，4s），播放完停在最后一帧
    各方案共用方案B 的王牌菜榜入场形态（上滑整页/返回箭头），
    首页→榜单中心→王牌菜榜 全链路保持不变
    ============================================================ */
@@ -23,6 +26,7 @@ const SCHEMES = [
   { id: "s1", label: "方案一 · 退出时放大+扫光", short: "方案一", note: "【推荐】" },
   { id: "s2", label: "方案二 · 关闭缩回入口", short: "方案二", note: "【会有跟手交互问题】" },
   { id: "s3", label: "方案三 · 聚光灯+引导提示", short: "方案三", note: "【影响操作流程性】" },
+  { id: "s4", label: "方案四 · 徽章动画停末帧", short: "方案四" },
 ];
 
 /* 方案二：面板缩回王牌菜榜入口的目标位（icon 位于榜单中心页 left 9.6% / top 30.6%，宽 10.3%） */
@@ -274,7 +278,12 @@ export default function Index() {
                   style={{ left: "9.6%", top: "30.6%", width: "10.3%", height: "4.74%" }}
                 >
                   <div className={`icon-inner ${iconAnimArmed ? `icon-inner--${scheme}` : ""} absolute inset-0 overflow-hidden`}>
-                    <img src={aceIconImg} alt="王牌菜榜" className="w-full h-full" draggable={false} />
+                    <img
+                      src={scheme === "s4" && iconAnimArmed ? aceMotionImg : aceIconImg}
+                      alt="王牌菜榜"
+                      className="w-full h-full"
+                      draggable={false}
+                    />
                     {iconAnimArmed && scheme === "origin" && <div className="icon-beam icon-beam--origin absolute inset-0" />}
                     {iconAnimArmed && scheme === "s1" && <div className="icon-beam icon-beam--s1 absolute inset-0" />}
                     {iconAnimArmed && scheme === "s2" && <div className="icon-beam icon-beam--s2 absolute inset-0" />}
